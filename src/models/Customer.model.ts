@@ -33,6 +33,7 @@ export interface ICustomer extends Document {
     addresses: ICustomerAddress[];
     status: 'active' | 'inactive';
     notes?: string;
+    planId?: Types.ObjectId;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -73,6 +74,7 @@ const CustomerSchema = new Schema<ICustomer>(
         addresses: [AddressSchema],
         status: { type: String, enum: ['active', 'inactive'], default: 'active' },
         notes: { type: String, trim: true },
+        planId: { type: Schema.Types.ObjectId, ref: 'Plan' },
     },
     { timestamps: true }
 );

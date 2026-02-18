@@ -26,6 +26,8 @@ router.post(
 // PUT /api/customers/:id
 router.put('/:id', customerController.update);
 
+router.patch('/:id/plan', customerController.updatePlan);
+
 // DELETE /api/customers/:id (soft delete)
 router.delete('/:id', customerController.delete);
 

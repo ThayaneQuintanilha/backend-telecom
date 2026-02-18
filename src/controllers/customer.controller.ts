@@ -24,7 +24,7 @@ export const customerController = {
 
     async getById(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         try {
-            const customer = await customerService.getById(req.user!.tenantId, req.params.id);
+            const customer = await customerService.getById(req.user!.tenantId, String(req.params.id));
             res.status(200).json(customer);
         } catch (error) {
             next(error);
@@ -42,7 +42,7 @@ export const customerController = {
 
     async update(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         try {
-            const customer = await customerService.update(req.user!.tenantId, req.params.id, req.body);
+            const customer = await customerService.update(req.user!.tenantId, String(req.params.id), req.body);
             res.status(200).json(customer);
         } catch (error) {
             next(error);
@@ -51,8 +51,22 @@ export const customerController = {
 
     async delete(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         try {
-            await customerService.delete(req.user!.tenantId, req.params.id);
+            await customerService.delete(req.user!.tenantId, String(req.params.id));
             res.status(200).json({ message: 'Cliente desativado com sucesso' });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    async updatePlan(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { planId } = req.body;
+            if (!planId) {
+                res.status(400).json({ message: 'planId é obrigatório' });
+                return;
+            }
+            const customer = await customerService.updatePlan(req.user!.tenantId, String(req.params.id), planId);
+            res.status(200).json(customer);
         } catch (error) {
             next(error);
         }

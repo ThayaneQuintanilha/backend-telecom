@@ -59,6 +59,13 @@ export interface IWorkOrder extends Document {
     locationAddress?: string;
     technicianId?: Types.ObjectId;
     teamId?: Types.ObjectId;
+    planId?: Types.ObjectId;
+    planSnapshot?: {
+        name: string;
+        downloadSpeed: number;
+        uploadSpeed: number;
+        price: number;
+    };
     scheduledAt?: Date;
     startedAt?: Date;
     completedAt?: Date;
@@ -126,6 +133,13 @@ const WorkOrderSchema = new Schema<IWorkOrder>(
         locationAddress: { type: String, trim: true },
         technicianId: { type: Schema.Types.ObjectId, ref: 'User' },
         teamId: { type: Schema.Types.ObjectId },
+        planId: { type: Schema.Types.ObjectId, ref: 'Plan' },
+        planSnapshot: {
+            name: String,
+            downloadSpeed: Number,
+            uploadSpeed: Number,
+            price: Number,
+        },
         scheduledAt: { type: Date },
         startedAt: { type: Date },
         completedAt: { type: Date },

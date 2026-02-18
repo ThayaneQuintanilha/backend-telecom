@@ -70,6 +70,7 @@ export const workOrderService = {
                 type: wo.type,
                 status: wo.status,
                 priority: wo.priority,
+                customerId: wo.customerId, // Exposing full customer object for frontend usage
                 customerName: wo.customerId?.name || '',
                 customerCity: wo.customerId?.addresses?.find((a: any) => a.isPrimary)?.city
                     || wo.customerId?.addresses?.[0]?.city

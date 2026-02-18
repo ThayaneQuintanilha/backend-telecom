@@ -53,5 +53,26 @@ export const routeController = {
         } catch (error) {
             next(error);
         }
+    },
+
+    async optimize(req: AuthRequest, res: Response, next: NextFunction) {
+        try {
+            const { workOrderIds, startLat, startLng } = req.body;
+
+            if (!Array.isArray(workOrderIds) || workOrderIds.length === 0) {
+                res.status(400).json({ message: 'workOrderIds deve ser um array não vazio' });
+                return;
+            }
+
+            const optimizedIds = await routeService.optimizeRoute(
+                req.user!.tenantId,
+                workOrderIds,
+                startLat,
+                startLng
+            );
+            res.json({ optimizedIds });
+        } catch (error) {
+            next(error);
+        }
     }
 };

@@ -1,4 +1,5 @@
 import { RouteModel, IRoute, generateRouteCode } from '../models/Route.model';
+import { WorkOrderModel } from '../models/WorkOrder.model';
 import { AppError } from '../middlewares/errorHandler.middleware';
 import { Types } from 'mongoose';
 
@@ -17,6 +18,24 @@ interface ListRouteParams {
     technicianId?: string;
     page?: number;
     limit?: number;
+}
+
+interface Coordinate {
+    lat: number;
+    lng: number;
+}
+
+// Função auxiliar para calcular distância (Haversine formula)
+function calculateDistance(coord1: Coordinate, coord2: Coordinate): number {
+    const R = 6371; // Raio da Terra em km
+    const dLat = (coord2.lat - coord1.lat) * Math.PI / 180;
+    const dLng = (coord2.lng - coord1.lng) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(coord1.lat * Math.PI / 180) * Math.cos(coord2.lat * Math.PI / 180) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
 }
 
 export const routeService = {
@@ -80,6 +99,10 @@ export const routeService = {
         const tenantObjectId = new Types.ObjectId(tenantId);
         const code = await generateRouteCode(tenantObjectId);
 
+        // Se a lista de OSs não vier otimizada do front, salvamos na ordem recebida.
+        // A otimização deve ser chamada ANTES de criar a rota, via endpoint específico,
+        // ou podemos otimizar aqui se uma flag for passada. Por enquanto, segue a ordem.
+
         const stops = data.workOrderIds.map((woId, index) => ({
             workOrderId: new Types.ObjectId(woId),
             order: index + 1,
@@ -108,5 +131,75 @@ export const routeService = {
         );
         if (!route) throw new AppError('Rota não encontrada', 404);
         return route;
+    },
+
+    // Algoritmo Vizinho Mais Próximo (Nearest Neighbor)
+    async optimizeRoute(tenantId: string, workOrderIds: string[], startLat?: number, startLng?: number) {
+        // 1. Buscar todas as OSs com seus endereços/coords
+        const workOrders = await WorkOrderModel.find({
+            _id: { $in: workOrderIds.map(id => new Types.ObjectId(id)) },
+            tenantId: new Types.ObjectId(tenantId)
+        })
+            .populate('customerId', 'addresses')
+            .lean();
+
+        // 2. Extrair coordenadas válidas
+        const points = workOrders.map((wo: any) => {
+            const primaryAddr = wo.customerId?.addresses?.find((a: any) => a.isPrimary)
+                || wo.customerId?.addresses?.[0];
+            return {
+                id: wo._id.toString(),
+                lat: primaryAddr?.lat || wo.locationId?.lat,
+                lng: primaryAddr?.lng || wo.locationId?.lng,
+                code: wo.code
+            };
+        }).filter(p => p.lat && p.lng);
+
+        if (points.length === 0) return workOrderIds; // Sem coordenadas, retorna original
+
+        // 3. Algoritmo NN
+        const optimizedIds: string[] = [];
+        const unvisited = [...points];
+
+        // Ponto inicial: startPoint ou o primeiro da lista (se não fornecido)
+        // Se startPoint fornecido, encontramos o mais proximo dele primeiro
+        let currentPos = (startLat && startLng) ? { lat: startLat, lng: startLng } : null;
+
+        if (!currentPos && unvisited.length > 0) {
+            // Se não tem ponto de partida, pega o primeiro da lista como inicio (arbitrário ou ordem de seleção)
+            // Para ser consistente, vamos pegar o primeiro "unvisited" e usar como partida real
+            const first = unvisited.shift()!;
+            optimizedIds.push(first.id as string);
+            currentPos = { lat: first.lat, lng: first.lng };
+        }
+
+        while (unvisited.length > 0 && currentPos) {
+            // Encontrar o mais próximo do currentPos
+            let nearestIdx = -1;
+            let minDist = Infinity;
+
+            for (let i = 0; i < unvisited.length; i++) {
+                const dist = calculateDistance(currentPos, { lat: unvisited[i].lat, lng: unvisited[i].lng });
+                if (dist < minDist) {
+                    minDist = dist;
+                    nearestIdx = i;
+                }
+            }
+
+            if (nearestIdx !== -1) {
+                const nearest = unvisited[nearestIdx];
+                optimizedIds.push(nearest.id as string);
+                currentPos = { lat: nearest.lat, lng: nearest.lng };
+                unvisited.splice(nearestIdx, 1);
+            } else {
+                break;
+            }
+        }
+
+        // Adiciona de volta qualquer ID que não tinha coordenada no final da lista
+        const idsWithCoords = new Set(points.map(p => p.id));
+        const idsWithoutCoords = workOrderIds.filter(id => !idsWithCoords.has(id));
+
+        return [...optimizedIds, ...idsWithoutCoords];
     }
 };

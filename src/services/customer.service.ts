@@ -39,7 +39,8 @@ export const customerService = {
         const skip = (page - 1) * limit;
         const [data, total] = await Promise.all([
             CustomerModel.find(filter)
-                .select('_id name document contacts addresses status createdAt')
+                .select('_id name document contacts addresses status planId createdAt')
+                .populate('planId', 'name price downloadSpeed uploadSpeed')
                 .sort({ name: 1 })
                 .skip(skip)
                 .limit(limit)
@@ -60,6 +61,12 @@ export const customerService = {
                 primaryCity: c.addresses?.find((a: any) => a.isPrimary)?.city
                     || c.addresses?.[0]?.city
                     || undefined,
+                plan: c.planId ? {
+                    name: c.planId.name,
+                    price: c.planId.price,
+                    downloadSpeed: c.planId.downloadSpeed,
+                    uploadSpeed: c.planId.uploadSpeed
+                } : undefined,
                 createdAt: c.createdAt,
             })),
             total,
@@ -72,7 +79,9 @@ export const customerService = {
         const customer = await CustomerModel.findOne({
             _id: new Types.ObjectId(customerId),
             tenantId: new Types.ObjectId(tenantId),
-        }).lean();
+        })
+            .populate('planId', 'name price downloadSpeed uploadSpeed')
+            .lean();
 
         if (!customer) throw new AppError('Cliente não encontrado', 404);
         return customer;
@@ -90,6 +99,17 @@ export const customerService = {
         const customer = await CustomerModel.findOneAndUpdate(
             { _id: new Types.ObjectId(customerId), tenantId: new Types.ObjectId(tenantId) },
             { $set: data },
+            { new: true, runValidators: true }
+        );
+
+        if (!customer) throw new AppError('Cliente não encontrado', 404);
+        return customer;
+    },
+
+    async updatePlan(tenantId: string, customerId: string, planId: string) {
+        const customer = await CustomerModel.findOneAndUpdate(
+            { _id: new Types.ObjectId(customerId), tenantId: new Types.ObjectId(tenantId) },
+            { $set: { planId: new Types.ObjectId(planId) } },
             { new: true, runValidators: true }
         );
 
