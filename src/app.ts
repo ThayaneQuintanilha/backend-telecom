@@ -8,6 +8,7 @@ import authRoutes from './routes/auth.routes';
 import customerRoutes from './routes/customer.routes';
 import workOrderRoutes from './routes/workOrder.routes';
 import vehicleRoutes from './routes/vehicle.routes';
+import inventoryRoutes from './routes/inventory.routes';
 
 // ============================================================
 // app.ts — Configuração do Express com todos os middlewares
@@ -40,6 +41,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/work-orders', workOrderRoutes);
 app.use('/api/vehicles', vehicleRoutes);
+app.use('/api/inventory', inventoryRoutes);
 
 // ── 404 e Error Handler (SEMPRE por último) ──────────────────
 app.use(notFound);
