@@ -145,12 +145,10 @@ WorkOrderSchema.index({ tenantId: 1, technicianId: 1 });
 WorkOrderSchema.index({ tenantId: 1, scheduledAt: 1 });
 WorkOrderSchema.index({ tenantId: 1, code: 1 }, { unique: true });
 
-// Auto-gerar código sequencial por tenant
-WorkOrderSchema.pre('save', async function (next) {
-    if (!this.isNew) return next();
-    const count = await WorkOrderModel.countDocuments({ tenantId: this.tenantId });
-    this.code = `OS-${String(count + 1).padStart(5, '0')}`;
-    next();
-});
-
 export const WorkOrderModel = mongoose.model<IWorkOrder>('WorkOrder', WorkOrderSchema);
+
+// Helper para gerar código sequencial por tenant
+export async function generateWorkOrderCode(tenantId: Types.ObjectId): Promise<string> {
+    const count = await WorkOrderModel.countDocuments({ tenantId });
+    return `OS-${String(count + 1).padStart(5, '0')}`;
+}

@@ -7,6 +7,7 @@ import { errorHandler, notFound } from './middlewares/errorHandler.middleware';
 import authRoutes from './routes/auth.routes';
 import customerRoutes from './routes/customer.routes';
 import workOrderRoutes from './routes/workOrder.routes';
+import vehicleRoutes from './routes/vehicle.routes';
 
 // ============================================================
 // app.ts — Configuração do Express com todos os middlewares
@@ -38,6 +39,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/work-orders', workOrderRoutes);
+app.use('/api/vehicles', vehicleRoutes);
 
 // ── 404 e Error Handler (SEMPRE por último) ──────────────────
 app.use(notFound);

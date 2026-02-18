@@ -1,4 +1,4 @@
-import { WorkOrderModel, WorkOrderStatus, WorkOrderType, WorkOrderPriority } from '../models/WorkOrder.model';
+import { WorkOrderModel, WorkOrderStatus, WorkOrderType, WorkOrderPriority, generateWorkOrderCode } from '../models/WorkOrder.model';
 import { AppError } from '../middlewares/errorHandler.middleware';
 import { Types } from 'mongoose';
 
@@ -53,8 +53,8 @@ export const workOrderService = {
         const skip = (page - 1) * limit;
         const [data, total] = await Promise.all([
             WorkOrderModel.find(filter)
-                .select('_id code type status priority customerId technicianId locationAddress scheduledAt createdAt')
-                .populate('customerId', 'name')
+                .select('_id code type status priority customerId technicianId scheduledAt createdAt')
+                .populate('customerId', 'name addresses')
                 .populate('technicianId', 'name')
                 .sort({ createdAt: -1 })
                 .skip(skip)
@@ -64,23 +64,22 @@ export const workOrderService = {
         ]);
 
         return {
-            data: data.map((wo: any) => ({
-                workOrderId: wo._id.toString(),
+            workOrders: data.map((wo: any) => ({
+                _id: wo._id.toString(),
                 code: wo.code,
                 type: wo.type,
                 status: wo.status,
                 priority: wo.priority,
-                customerId: wo.customerId?._id?.toString() || wo.customerId?.toString(),
                 customerName: wo.customerId?.name || '',
-                technicianId: wo.technicianId?._id?.toString(),
+                customerCity: wo.customerId?.addresses?.find((a: any) => a.isPrimary)?.city
+                    || wo.customerId?.addresses?.[0]?.city
+                    || undefined,
                 technicianName: wo.technicianId?.name,
-                address: wo.locationAddress || '',
-                scheduledAt: wo.scheduledAt,
+                scheduledDate: wo.scheduledAt,
                 createdAt: wo.createdAt,
             })),
             total,
             page,
-            limit,
             totalPages: Math.ceil(total / limit),
         };
     },
@@ -100,8 +99,13 @@ export const workOrderService = {
     },
 
     async create(tenantId: string, userId: string, userName: string, data: CreateWorkOrderData) {
+        const tenantObjectId = new Types.ObjectId(tenantId);
+        // Gera o código antes de criar para satisfazer a validação required
+        const code = await generateWorkOrderCode(tenantObjectId);
+
         const wo = await WorkOrderModel.create({
-            tenantId: new Types.ObjectId(tenantId),
+            tenantId: tenantObjectId,
+            code,
             type: data.type,
             priority: data.priority || 'medium',
             customerId: new Types.ObjectId(data.customerId),
